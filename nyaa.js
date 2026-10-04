@@ -1,5 +1,5 @@
 /**
- * Hayase Nyaa Provider Extension (RSS / XML Version - Hardened)
+ * Hayase Nyaa Provider Extension (HTML Scraping Version - Hardened)
  */
 export async function search(query, options = {}) {
   // Always return an empty array if query is missing
@@ -7,11 +7,11 @@ export async function search(query, options = {}) {
     return [];
   }
 
+  // Construct query parameters for Nyaa HTML page
   const params = new URLSearchParams({
-    page: "rss",
-    f: options.filter || "0",
-    c: options.category || "0_0",
-    s: options.sort || "seeders",
+    f: options.filter || "0",     // 0 = No filter, 1 = No remakes, 2 = Trusted only
+    c: options.category || "0_0", // 0_0 = All categories, 1_2 = Anime - English-translated
+    s: options.sort || "seeders", // Default sort by seeders
     o: "desc",
     q: query
   });
@@ -26,53 +26,47 @@ export async function search(query, options = {}) {
     });
 
     if (!response.ok) {
-      console.warn(`Nyaa request failed with status: ${response.status}`);
-      return []; // Return empty array on HTTP error
-    }
-
-    const xmlText = await response.text();
-    if (!xmlText || !xmlText.trim()) {
+      console.warn(`Nyaa HTML fetch failed with status: ${response.status}`);
       return [];
     }
 
-    const doc = new DOMParser().parseFromString(xmlText, "text/xml");
-
-    // Check if DOMParser outputted an XML parsing error
-    const parserError = doc.querySelector("parsererror");
-    if (parserError) {
-      console.error("XML Parsing Error:", parserError.textContent);
+    const htmlText = await response.text();
+    if (!htmlText || !htmlText.trim()) {
       return [];
     }
 
-    const items = doc.querySelectorAll("item");
-    if (!items || items.length === 0) {
+    // Parse returned string as HTML
+    const doc = new DOMParser().parseFromString(htmlText, "text/html");
+    const rows = doc.querySelectorAll("table.torrent-list tbody tr");
+
+    if (!rows || rows.length === 0) {
       return [];
     }
 
     const results = [];
 
-    // Safely iterate through items
-    Array.from(items).forEach((item) => {
+    // Safely iterate through table rows
+    Array.from(rows).forEach((row) => {
       try {
-        const name = item.querySelector("title")?.textContent?.trim() || "";
-        const link = item.querySelector("guid")?.textContent?.trim() || 
-                     item.querySelector("link")?.textContent?.trim() || "";
-        const date = item.querySelector("pubDate")?.textContent?.trim() || "";
+        const cells = row.querySelectorAll("td");
+        if (!cells || cells.length < 8) return;
 
-        const seedersText = getXmlTagValue(item, "nyaa", "seeders") || "0";
-        const leechersText = getXmlTagValue(item, "nyaa", "leechers") || "0";
-        const downloadsText = getXmlTagValue(item, "nyaa", "downloads") || "0";
-        const size = getXmlTagValue(item, "nyaa", "size") || "Unknown";
+        // Extract title link and magnet link
+        const titleLink = row.querySelector('td[colspan="2"] a[href^="/view/"]:not(.comments)');
+        const magnetLink = row.querySelector('a[href^="magnet:"]');
 
-        const infoHash = getXmlTagValue(item, "nyaa", "infoHash");
-        let magnet = "";
+        if (!titleLink || !magnetLink) return;
 
-        if (infoHash) {
-          magnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(name)}`;
-        } else {
-          const enclosure = item.querySelector("enclosure");
-          magnet = enclosure?.getAttribute("url") || "";
-        }
+        const name = titleLink.textContent?.trim() || "";
+        const magnet = magnetLink.getAttribute("href") || "";
+        const href = titleLink.getAttribute("href") || "";
+
+        // Column extraction based on Nyaa table layout
+        const size = cells[3]?.textContent?.trim() || "Unknown";
+        const date = cells[4]?.textContent?.trim() || "";
+        const seedersText = cells[5]?.textContent?.trim() || "0";
+        const leechersText = cells[6]?.textContent?.trim() || "0";
+        const downloadsText = cells[7]?.textContent?.trim() || "0";
 
         if (!name || !magnet) return;
 
@@ -84,34 +78,17 @@ export async function search(query, options = {}) {
           leechers: parseInt(leechersText, 10) || 0,
           downloads: parseInt(downloadsText, 10) || 0,
           date,
-          link
+          link: href.startsWith("http") ? href : `https://nyaa.si${href}`
         });
       } catch (err) {
-        console.error("Error parsing individual item:", err);
+        console.error("Error parsing row:", err);
       }
     });
 
     // Ensure we strictly return an Array
     return Array.isArray(results) ? results : [];
   } catch (error) {
-    console.error("Nyaa RSS Extension Error:", error);
-    return []; // Return empty array on exception to prevent "not iterable" error in Hayase
-  }
-}
-
-/**
- * Helper to safely extract XML namespace tag values across environments
- */
-function getXmlTagValue(parent, prefix, localName) {
-  try {
-    const nsElements = parent.getElementsByTagNameNS("*", localName);
-    if (nsElements && nsElements.length > 0) {
-      return nsElements[0].textContent?.trim() || "";
-    }
-    
-    const queryElement = parent.querySelector(`${prefix}\\:${localName}, ${localName}`);
-    return queryElement?.textContent?.trim() || "";
-  } catch (e) {
-    return "";
+    console.error("Nyaa HTML Extension Error:", error);
+    return []; // Return empty array on exception to prevent "not iterable" error
   }
 }
