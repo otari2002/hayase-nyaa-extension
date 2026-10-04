@@ -1,0 +1,39 @@
+{
+  "id": "hayase.extension.nyaa.custom",
+  "name": "Nyaa Custom Scraper",
+  "version": "1.1.0",
+  "type": "torrent",
+  "accuracy": "high",
+  "media": "sub",
+  "languages": ["EN", "JP"],
+  "icon": "https://nyaa.si/static/favicon.png",
+  "update": "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/index.json",
+  "code": "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/nyaa.js",
+  "settings": [
+    {
+      "id": "category",
+      "name": "Default Category",
+      "type": "select",
+      "default": "1_2",
+      "options": [
+        { "label": "All Categories", "value": "0_0" },
+        { "label": "Anime - English-translated", "value": "1_2" },
+        { "label": "Anime - Non-English-translated", "value": "1_3" },
+        { "label": "Anime - Raw", "value": "1_4" },
+        { "label": "Audio - Lossless", "value": "2_1" },
+        { "label": "Literature - English-translated", "value": "3_1" }
+      ]
+    },
+    {
+      "id": "filter",
+      "name": "Search Filter",
+      "type": "select",
+      "default": "0",
+      "options": [
+        { "label": "No Filter", "value": "0" },
+        { "label": "No Remakes", "value": "1" },
+        { "label": "Trusted Only", "value": "2" }
+      ]
+    }
+  ]
+}
