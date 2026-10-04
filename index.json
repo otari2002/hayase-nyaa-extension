@@ -7,8 +7,8 @@
   "media": "sub",
   "languages": ["EN", "JP"],
   "icon": "https://nyaa.si/static/favicon.png",
-  "update": "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/index.json",
-  "code": "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/nyaa.js",
+  "update": "https://raw.githubusercontent.com/otari2002/hayase-nyaa-extension/refs/heads/main/index.json",
+  "code": "https://raw.githubusercontent.com/otari2002/hayase-nyaa-extension/refs/heads/main/nyaa.js",
   "settings": [
     {
       "id": "category",
